@@ -1,0 +1,75 @@
+class source_monitor extends uvm_monitor;
+
+  `uvm_component_utils(source_monitor)
+
+  virtual router_if.WMON_MP vif;
+
+  uvm_analysis_port #(write_xtn) monitor_port;
+
+  router_source_config m_cfg;
+
+  extern function new(string name = "source_monitor", uvm_component parent);
+  extern function void build_phase(uvm_phase phase);
+  extern function void connect_phase(uvm_phase phase);
+  extern task run_phase(uvm_phase phase);
+  extern task collect_data();
+
+endclass
+
+function source_monitor:: new(string name = "source_monitor",
+               uvm_component parent);
+    super.new(name,parent);
+    monitor_port = new("monitor_port",this);
+  endfunction
+
+function void source_monitor::build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(router_source_config)::get(this,"","src_config",m_cfg))
+                `uvm_fatal(get_full_name,"NOT_GETTING IN THE SRC")
+endfunction
+
+function void source_monitor::connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        vif = m_cfg.vif;
+endfunction
+
+
+task source_monitor::run_phase(uvm_phase phase);
+        super.run_phase(phase);
+        forever
+           begin
+                collect_data();
+         end
+endtask
+
+task source_monitor::collect_data();
+        write_xtn mon_data;
+        begin
+           mon_data = write_xtn::type_id::create("mon_data");
+           @(vif.wmon_cb);
+           wait(vif.wmon_cb.pkt_valid==1);
+           wait(vif.wmon_cb.busy==0)
+           mon_data.header = vif.wmon_cb.data_in;
+           mon_data.payload_data = new[mon_data.header[7:2]];
+
+
+           @(vif.wmon_cb);
+           foreach(mon_data.payload_data[i])
+                begin
+                   wait(vif.wmon_cb.busy == 0);
+                   mon_data.payload_data[i] = vif.wmon_cb.data_in;
+                  @(vif.wmon_cb);
+                end
+          wait(vif.wmon_cb.busy==0);
+                mon_data.parity = vif.wmon_cb.data_in;
+                repeat(2) @(vif.wmon_cb);
+                mon_data.err = vif.wmon_cb.error;
+        `uvm_info("ROUTER_WR_MONITOR",$sformatf("printing from monitor \n %s", mon_data.sprint()),UVM_LOW)
+
+        monitor_port.write(mon_data);
+
+        end
+endtask
+
+
+

@@ -1,0 +1,66 @@
+class source_driver extends uvm_driver#(write_xtn);
+
+  `uvm_component_utils(source_driver)
+
+        virtual router_if.WDR_MP vif;
+        router_source_config m_cfg;
+
+        extern function new(string name = "source_driver", uvm_component parent);
+        extern function void build_phase(uvm_phase phase);
+        extern function void connect_phase(uvm_phase phase);
+        extern task run_phase(uvm_phase phase);
+        extern task send_to_dut(write_xtn xtn);
+endclass
+function source_driver:: new(string name = "source_driver",
+               uvm_component parent);
+    super.new(name,parent);
+  endfunction
+
+function void  source_driver::build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(router_source_config)::get(this,"","src_config",m_cfg))
+                `uvm_fatal(get_full_name,"NOT_GETTING_IN SRC")
+endfunction
+
+function void source_driver::connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        vif = m_cfg.vif;
+endfunction
+
+task source_driver::run_phase(uvm_phase phase);
+        super.run_phase(phase);
+
+        forever
+           begin
+                seq_item_port.get_next_item(req);
+                send_to_dut(req);
+                seq_item_port.item_done();
+        end
+endtask
+
+
+task source_driver::send_to_dut(write_xtn xtn);
+
+        `uvm_info("ROUTER_WR_DRIVER",$sformatf("printing from driver \n %s", xtn.sprint()),UVM_LOW)
+
+
+        @(vif.wdr_cb);
+        wait(vif.wdr_cb.busy==0)
+                vif.wdr_cb.pkt_valid<=1;
+                vif.wdr_cb.data_in<=xtn.header;
+
+
+        @(vif.wdr_cb);
+        foreach(xtn.payload_data[i])
+           begin
+                wait(vif.wdr_cb.busy==0)
+                   vif.wdr_cb.data_in<=xtn.payload_data[i];
+                   @(vif.wdr_cb);
+          end
+
+        wait(vif.wdr_cb.busy == 0)
+                vif.wdr_cb.pkt_valid<=0;
+                vif.wdr_cb.data_in<=xtn.parity;
+                repeat(2) @(vif.wdr_cb);
+                xtn.err = vif.wdr_cb.error;
+endtask

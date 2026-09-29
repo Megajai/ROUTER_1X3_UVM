@@ -1,0 +1,244 @@
+class virtual_seqs extends uvm_sequence #(uvm_sequence_item);
+
+
+        `uvm_object_utils(virtual_seqs)
+
+        source_sequencer wr_seqr[];
+        dest_sequencer rd_seqr[];
+
+        router_virtual_sequencer v_seqr;
+
+        env_config m_cfg;
+
+        function new(string name = "virtual_seqs");
+                super.new(name);
+        endfunction
+
+
+        task body();
+                if(!uvm_config_db#(env_config)::get(null,get_full_name,"env_config",m_cfg))
+                        `uvm_fatal(get_full_name,"NOT GETTING CONFIG")
+
+        wr_seqr = new[m_cfg.no_of_source_agt];
+        rd_seqr = new[m_cfg.no_of_dst_agt];
+
+
+        assert($cast(v_seqr,m_sequencer))
+        else
+          begin
+                `uvm_error("BODY","CASTING NOT HAPPENS")
+        end
+
+        foreach(wr_seqr[i])
+                wr_seqr[i] = v_seqr.wr_seqrh[i];
+        foreach(rd_seqr[i])
+                rd_seqr[i] = v_seqr.rd_seqrh[i];
+        endtask
+
+
+endclass
+
+
+
+class router_small_vseq extends virtual_seqs;
+
+        `uvm_object_utils(router_small_vseq)
+
+        bit[1:0] addr;
+        router_small_seq small_seqs;
+        dest_small_seq low_seq;
+
+
+        function new(string name = "router_small_vseq");
+                super.new(name);
+        endfunction
+
+
+
+        task body();
+
+                super.body();
+
+                if(!uvm_config_db#(bit[1:0])::get(null,get_full_name,"addr",addr))
+                        `uvm_fatal(get_full_name,"NOT GETTING")
+
+                if(m_cfg.has_wagent)
+                        begin
+                          small_seqs = router_small_seq::type_id::create("small_seqs");
+                        end
+                if(m_cfg.has_ragent)
+                        begin
+                          low_seq = dest_small_seq::type_id::create("low_seq");
+                        end
+
+                fork
+
+                begin
+                        small_seqs.start(wr_seqr[0]);
+                end
+                begin
+                        if(addr == 2'b00)
+                          low_seq.start(rd_seqr[0]);
+                        if(addr == 2'b01)
+                          low_seq.start(rd_seqr[1]);
+                        if(addr == 2'b10)
+                         low_seq.start(rd_seqr[2]);
+                end
+                join
+        endtask
+endclass
+
+
+class router_medium_vseq extends virtual_seqs;
+
+        `uvm_object_utils(router_medium_vseq)
+
+        bit[1:0] addr;
+
+        router_medium_seq mid_seqs;
+        //dest_large_seq large_seq;
+
+        dest_small_seq low_seq;
+
+        function new(string name = "router_medium_vseq");
+                super.new(name);
+        endfunction
+
+
+
+        task body();
+
+                super.body();
+
+                if(!uvm_config_db#(bit[1:0])::get(null,get_full_name,"addr",addr))
+                        `uvm_fatal(get_full_name,"NOT GETTING")
+
+                if(m_cfg.has_wagent)
+                        begin
+                          mid_seqs = router_medium_seq::type_id::create("mid_seqs");
+                        end
+                if(m_cfg.has_ragent)
+                        begin
+                          low_seq = dest_small_seq::type_id::create("low_seq");
+                        end
+
+                fork
+
+                begin
+                        mid_seqs.start(wr_seqr[0]);
+                end
+                begin
+                        if(addr == 2'b00)
+                          low_seq.start(rd_seqr[0]);
+                        if(addr == 2'b01)
+                          low_seq.start(rd_seqr[1]);
+                        if(addr == 2'b10)
+                         low_seq.start(rd_seqr[2]);
+                end
+                join
+        endtask
+endclass
+
+
+
+
+class router_big_vseq extends virtual_seqs;
+
+        `uvm_object_utils(router_big_vseq)
+
+        bit[1:0] addr;
+
+        router_big_seq big_seqs;
+        dest_small_seq low_seq;
+
+        function new(string name = "router_big_vseq");
+                super.new(name);
+        endfunction
+
+
+
+        task body();
+
+                super.body();
+
+                if(!uvm_config_db#(bit[1:0])::get(null,get_full_name,"addr",addr))
+                        `uvm_fatal(get_full_name,"NOT GETTING")
+
+                if(m_cfg.has_wagent)
+                        begin
+                          big_seqs = router_big_seq::type_id::create("big_seqs");
+                        end
+                if(m_cfg.has_ragent)
+                        begin
+                          low_seq = dest_small_seq::type_id::create("low_seq");
+                        end
+
+                fork
+
+                begin
+                        big_seqs.start(wr_seqr[0]);
+                end
+                begin
+                        if(addr == 2'b00)
+                          low_seq.start(rd_seqr[0]);
+                        if(addr == 2'b01)
+                          low_seq.start(rd_seqr[1]);
+                        if(addr == 2'b10)
+                         low_seq.start(rd_seqr[2]);
+                end
+                join
+        endtask
+endclass
+
+
+
+class router_rand_vseq extends virtual_seqs;
+
+        `uvm_object_utils(router_rand_vseq)
+
+        bit[1:0] addr;
+
+
+        router_rand_seq rand_seqs;
+        dest_small_seq low_seq;
+
+
+        function new(string name = "router_rand_vseq");
+                super.new(name);
+        endfunction
+
+
+
+        task body();
+
+                super.body();
+
+                if(!uvm_config_db#(bit[1:0])::get(null,get_full_name,"addr",addr))
+                        `uvm_fatal(get_full_name,"NOT GETTING")
+
+                if(m_cfg.has_wagent)
+                        begin
+                          rand_seqs = router_rand_seq::type_id::create("rand_seqs");
+                        end
+                if(m_cfg.has_ragent)
+                        begin
+                          low_seq = dest_small_seq::type_id::create("low_seq");
+                        end
+
+                fork
+
+                begin
+                        rand_seqs.start(wr_seqr[0]);
+                end
+                begin
+                        if(addr == 2'b00)
+                          low_seq.start(rd_seqr[0]);
+                        if(addr == 2'b01)
+                          low_seq.start(rd_seqr[1]);
+                        if(addr == 2'b10)
+                         low_seq.start(rd_seqr[2]);
+                end
+                join
+        endtask
+endclass
+

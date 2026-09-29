@@ -1,0 +1,116 @@
+class dest_driver extends uvm_driver#(read_xtn);
+
+  `uvm_component_utils(dest_driver)
+
+
+  virtual router_if.RDR_MP vif;
+
+  router_dest_config m_cfg;
+
+  extern function new(string name="dest_driver", uvm_component parent);
+  extern function void build_phase(uvm_phase phase);
+  extern function void connect_phase(uvm_phase phase);
+  extern task run_phase(uvm_phase phase);
+  extern task send_to_dut(read_xtn xtn);
+endclass
+
+  function dest_driver::new(string name="dest_driver", uvm_component parent);
+         super.new(name,parent);
+  endfunction
+
+  function void dest_driver::build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(router_dest_config)::get(this,"","dst_config",m_cfg))
+                `uvm_fatal(get_full_name,"NOT_GETTING_IN_DEST")
+  endfunction
+
+function void dest_driver::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    vif = m_cfg.vif;
+
+    if(vif == null)
+        `uvm_fatal("DEST_DRV","vif is NULL")
+    else
+`uvm_info("DEST_DRV",$sformatf("Driver=%s vif=%p",get_full_name(),vif),UVM_LOW)
+endfunction
+  task dest_driver::run_phase(uvm_phase phase);
+        super.run_phase(phase);
+        forever begin
+                seq_item_port.get_next_item(req);
+                send_to_dut(req);
+                seq_item_port.item_done();
+        end
+  endtask
+
+ /* task dest_driver::send_to_dut(read_xtn xtn);
+        `uvm_info("ROUTER_RD_DRIVER",$sformatf("printing from driver \n %s", xtn.sprint()),UVM_LOW)
+        @(vif.rdr_cb);
+$display("Driver waiting...");
+wait(vif.rdr_cb.v_out);
+$display("Driver saw valid_out HIGH at %0t**********************88888493984r92837402934GGDHUS(OONIDIUWBDIWUWDIWJND
+////////////////////////////////////////////////////////////////////////////////
+llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll/nooooooooooooooooooooooooooooooooo/noooooooooooooooooooooooooo/noooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo", $time);
+        //wait(vif.rdr_cb.v_out)
+                repeat(xtn.no_of_cycles)
+                        @(vif.rdr_cb);
+                vif.rdr_cb.read_enb<=1;
+                $display("READ_ENB asserted at %0t", $time);
+                wait(!vif.rdr_cb.v_out)
+                        @(vif.rdr_cb);
+                vif.rdr_cb.read_enb<=0;
+                $display("READ_ENB deasserted at %0t", $time);
+                @(vif.rdr_cb);
+  endtask*/
+/*task dest_driver::send_to_dut(read_xtn xtn);
+
+   `uvm_info("DEST_DRV","Waiting for valid_out",UVM_LOW)
+
+   @(vif.rdr_cb);
+
+   wait(vif.rdr_cb.v_out);
+
+   `uvm_info("DEST_DRV","valid_out detected",UVM_LOW)
+
+   repeat(xtn.no_of_cycles)
+      @(vif.rdr_cb);
+
+   vif.rdr_cb.read_enb <= 1;
+
+   `uvm_info("DEST_DRV","read_enb asserted",UVM_LOW)
+
+   wait(!vif.rdr_cb.v_out);
+
+   vif.rdr_cb.read_enb <= 0;
+
+endtask*/
+
+
+task dest_driver::send_to_dut(read_xtn xtn);
+
+  `uvm_info("ROUTER_RD_DRIVER",
+            $sformatf("printing from driver \n%s", xtn.sprint()),
+            UVM_LOW)
+
+  @(vif.rdr_cb);
+
+  $display("Driver waiting...");
+  wait(vif.rdr_cb.v_out);
+
+  repeat(xtn.no_of_cycles)
+    @(vif.rdr_cb);
+
+  vif.rdr_cb.read_enb <= 1'b1;
+  $display("READ_ENB asserted at %0t",$time);
+
+  @(vif.rdr_cb);
+
+  while(vif.rdr_cb.v_out)
+    @(vif.rdr_cb);
+
+  vif.rdr_cb.read_enb <= 1'b0;
+  $display("READ_ENB deasserted at %0t",$time);
+
+  @(vif.rdr_cb);
+
+endtask
+

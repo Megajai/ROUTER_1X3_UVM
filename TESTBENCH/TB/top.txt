@@ -1,0 +1,94 @@
+module top;
+
+
+  import uvm_pkg::*;
+  import router_test_pkg::*;
+
+
+    bit clock;
+        always
+                #10 clock=!clock;
+
+        router_if inf0(clock);
+        router_if inf1(clock);
+        router_if inf2(clock);
+        router_if inf3(clock);
+
+router DUT(
+
+    .clock      (clock),
+    .resetn     (inf0.resetn),
+
+    .data_in    (inf0.data_in),
+    .pkt_valid  (inf0.pkt_valid),
+
+    .read_enb_0 (inf1.read_enb),
+    .read_enb_1 (inf2.read_enb),
+    .read_enb_2 (inf3.read_enb),
+
+    .data_out_0 (inf1.data_out),
+    .data_out_1 (inf2.data_out),
+    .data_out_2 (inf3.data_out),
+
+    .vld_out_0  (inf1.v_out),
+    .vld_out_1  (inf2.v_out),
+    .vld_out_2  (inf3.v_out),
+
+    .err        (inf0.error),
+    .busy       (inf0.busy)
+
+);
+
+initial begin
+    inf0.resetn = 0;
+
+    // Initialize source-side inputs
+    inf0.pkt_valid = 0;
+    inf0.data_in   = 0;
+
+    // Initialize destination read enables
+    inf1.read_enb = 0;
+    inf2.read_enb = 0;
+    inf3.read_enb = 0;
+
+    repeat(2) @(posedge clock);
+
+    inf0.resetn = 1;
+
+    $display("Reset Released @ %0t", $time);
+end
+  initial
+  begin
+
+        uvm_config_db#(virtual router_if)::set(null,"*","vif0",inf0);
+        uvm_config_db#(virtual router_if)::set(null,"*","vif1",inf1);
+        uvm_config_db#(virtual router_if)::set(null,"*","vif2",inf2);
+        uvm_config_db#(virtual router_if)::set(null,"*","vif3",inf3);
+        run_test();
+
+  end
+/*always @(posedge clock)
+begin
+    $display("\n==================== TIME = %0t ====================",$time);
+    $display("resetn=%b busy=%b pkt_valid=%b data_in=%h",
+              inf0.resetn, inf0.busy, inf0.pkt_valid, inf0.data_in);
+
+    $display("valid0=%b read0=%b data0=%h",
+              inf1.v_out, inf1.read_enb, inf1.data_out);
+
+    $display("valid1=%b read1=%b data1=%h",
+              inf2.v_out, inf2.read_enb, inf2.data_out);
+
+    $display("valid2=%b read2=%b data2=%h",
+              inf3.v_out, inf3.read_enb, inf3.data_out);
+end*/
+
+/*
+always @(posedge clock)
+begin
+    $display("TOP : inf2.v_out=%b inf2.read_enb=%b",
+              inf2.v_out,
+              inf2.read_enb);
+end*/
+
+endmodule

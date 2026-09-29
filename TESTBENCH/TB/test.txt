@@ -1,0 +1,209 @@
+class router_test extends uvm_test;
+
+  `uvm_component_utils(router_test)
+
+   router_env env_h;
+   env_config m_tb_config;
+
+   router_source_config src_config[];
+   router_dest_config dst_config[];
+
+   int has_wagent = 1;
+   int has_ragent = 1;
+   int no_of_source_agt = 1;
+   int no_of_dest_agt = 3;
+
+
+  function new(string name="router_test",
+               uvm_component parent);
+    super.new(name,parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    m_tb_config = env_config::type_id::create("m_tb_config",this);
+
+    if(has_wagent)
+    m_tb_config.src_config = new[no_of_source_agt];
+    if(has_ragent)
+    m_tb_config.dst_config = new[no_of_dest_agt];
+
+    config_router();
+
+    uvm_config_db#(env_config)::set(this,"*","env_config",m_tb_config);
+
+
+    env_h =router_env::type_id::create("env_h", this);
+  endfunction
+
+
+  function void config_router();
+        if(has_wagent)begin
+                src_config = new[no_of_source_agt];
+                foreach(src_config[i])begin
+                        src_config[i] = router_source_config::type_id::create($sformatf("src_config[%0d]",i));
+                        if(!uvm_config_db#(virtual router_if)::get(this,"",$sformatf("vif%0d",i),src_config[i].vif))
+                                `uvm_fatal(get_full_name,"cannot get the interface")
+                        src_config[i].is_active = UVM_ACTIVE;
+                        m_tb_config.src_config[i] = src_config[i];
+                end
+        end
+
+        if(has_ragent)begin
+                dst_config = new[no_of_dest_agt];
+                foreach(dst_config[i])begin
+                        dst_config[i] = router_dest_config::type_id::create($sformatf("dst_config[%0d]",i));
+                        if(!uvm_config_db#(virtual router_if)::get( this, "", $sformatf("vif%0d",i+1), dst_config[i].vif))
+                                `uvm_fatal(get_full_name,"cannot get the interface")
+                        $display("CONFIG: dst_config[%0d] = %p", i, dst_config[i].vif);
+                        dst_config[i].is_active = UVM_ACTIVE;
+                        m_tb_config.dst_config[i] = dst_config[i];
+                end
+        end
+
+        m_tb_config.no_of_source_agt = no_of_source_agt;
+        m_tb_config.no_of_dst_agt = no_of_dest_agt;
+        m_tb_config.has_ragent = has_ragent;
+        m_tb_config.has_wagent = has_wagent;
+endfunction
+
+
+  function void end_of_elaboration_phase(uvm_phase phase);
+    super.end_of_elaboration_phase(phase);
+
+    uvm_top.print_topology();
+  endfunction
+
+endclass
+
+
+class router_small_test extends router_test;
+
+        `uvm_component_utils(router_small_test)
+
+
+        bit [1:0]addr;
+
+        router_small_vseq small_vseq;
+
+        function new(string name = "router_small_test",uvm_component parent);
+                super.new(name,parent);
+        endfunction
+
+        function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+        endfunction
+
+        task run_phase(uvm_phase phase);
+                super.run_phase(phase);
+                addr = 1;
+                uvm_config_db#(bit[1:0])::set(this,"*","addr",addr);
+        repeat(10)
+           begin
+                phase.raise_objection(this);
+                small_vseq = router_small_vseq::type_id::create("small_vseq");
+                small_vseq.start(env_h.v_seqr);
+
+                phase.drop_objection(this);
+        end
+        endtask
+
+
+endclass
+
+
+class router_medium_test extends router_test;
+
+        `uvm_component_utils(router_medium_test)
+
+        bit [1:0]addr;
+
+        router_medium_vseq mid_vseq;
+
+        function new(string name = "router_medium_test",uvm_component parent);
+                super.new(name,parent);
+        endfunction
+
+        function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+        endfunction
+
+        task run_phase(uvm_phase phase);
+                addr = 0;
+                uvm_config_db#(bit[1:0])::set(this,"*","addr",addr);
+                super.run_phase(phase);
+        repeat(10)
+                begin
+                phase.raise_objection(this);
+                mid_vseq = router_medium_vseq::type_id::create("mid_vseq");
+                mid_vseq.start(env_h.v_seqr);
+                phase.drop_objection(this);
+        end
+        endtask
+
+
+endclass
+
+
+
+class router_big_test extends router_test;
+
+        `uvm_component_utils(router_big_test)
+
+        bit[1:0] addr;
+        router_big_vseq big_seq;
+
+        function new(string name = "router_big_test",uvm_component parent);
+                super.new(name,parent);
+        endfunction
+
+        function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+        endfunction
+
+        task run_phase(uvm_phase phase);
+                addr = 1;
+                uvm_config_db#(bit[1:0])::set(this,"*","addr",addr);
+                super.run_phase(phase);
+        repeat(10) begin
+                phase.raise_objection(this);
+                big_seq = router_big_vseq::type_id::create("big_seq");
+                big_seq.start(env_h.v_seqr);
+                phase.drop_objection(this);
+        end
+        endtask
+
+
+endclass
+
+
+class router_rand_test extends router_test;
+
+        `uvm_component_utils(router_rand_test)
+
+        bit [1:0]addr;
+        router_rand_vseq rand_vseq;
+
+        function new(string name = "router_rand_test",uvm_component parent);
+                super.new(name,parent);
+        endfunction
+
+        function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+        endfunction
+
+        task run_phase(uvm_phase phase);
+                addr = 2;
+                uvm_config_db#(bit[1:0])::set(this,"*","addr",addr);
+                super.run_phase(phase);
+        repeat(10)
+                begin
+                phase.raise_objection(this);
+                rand_vseq = router_rand_vseq::type_id::create("rand_vseq");
+                rand_vseq.start(env_h.v_seqr);
+                phase.drop_objection(this);
+        end
+        endtask
+
+
+endclass

@@ -1,0 +1,65 @@
+class router_env extends uvm_env;
+
+  `uvm_component_utils(router_env)
+
+  source_agent_top    src_top;
+  dest_agent_top     dst_top;
+  router_scoreboard     sb;
+  router_virtual_sequencer   v_seqr;
+  env_config m_cfg;
+
+  function new(string name="tb",
+               uvm_component parent);
+    super.new(name,parent);
+  endfunction
+
+
+   function void build_phase(uvm_phase phase);
+          if(!uvm_config_db #(env_config)::get(this,"","env_config",m_cfg))
+                `uvm_fatal("CONFIG","cannot get() m_cfg from uvm_config_db. Have you set() it?")
+                if(m_cfg.has_wagent) begin
+                   for(int i=0;i<m_cfg.no_of_source_agt;i++)begin
+                        uvm_config_db#(router_source_config)::set(this,"*","src_config",m_cfg.src_config[i]);
+                   end
+                        src_top = source_agent_top::type_id::create("src_top",this);
+                end
+                if(m_cfg.has_ragent == 1) begin
+                    for(int i=0;i<m_cfg.no_of_dst_agt;i++)begin
+                         uvm_config_db#(router_dest_config)::set(this,$sformatf("dst_top.d_agent[%0d]*",i),"dst_config",m_cfg.dst_config[i]);
+                    end
+                        dst_top = dest_agent_top::type_id::create("dst_top",this);
+               end
+
+                super.build_phase(phase);
+               if(m_cfg.has_virtual_sequencer)
+                 v_seqr=router_virtual_sequencer::type_id::create("v_seqr",this);
+               if(m_cfg.has_scoreboard) begin
+                        sb = router_scoreboard::type_id::create("sb",this);
+               end
+                endfunction
+
+function void connect_phase(uvm_phase phase);
+            if(m_cfg.has_virtual_sequencer) begin
+
+                        if(m_cfg.has_wagent) begin
+                                for(int i=0;i<m_cfg.no_of_source_agt;i++) begin
+                                        v_seqr.wr_seqrh[i] = src_top.s_agent[i].seqr;
+                                end
+                        end
+                        if(m_cfg.has_ragent)begin
+                                for(int i=0;i<m_cfg.no_of_dst_agt;i++) begin
+                                        v_seqr.rd_seqrh[i] = dst_top.d_agent[i].seqr;
+                        end
+                        end
+        end
+         if(m_cfg.has_scoreboard) begin
+                        for(int i=0;i<m_cfg.no_of_source_agt;i++) begin
+                                        src_top.s_agent[i].mon.monitor_port.connect(sb.fifo_wdh[i].analysis_export);
+                        end
+                        for(int i=0;i<m_cfg.no_of_dst_agt;i++) begin
+                                      dst_top.d_agent[i].mon.monitor_port.connect(sb.fifo_rdh[i].analysis_export);
+                         end
+            end
+endfunction
+
+endclass

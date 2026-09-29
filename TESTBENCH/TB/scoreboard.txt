@@ -1,0 +1,154 @@
+class router_scoreboard extends uvm_scoreboard;
+
+  `uvm_component_utils(router_scoreboard)
+
+
+   uvm_tlm_analysis_fifo #(write_xtn) fifo_wdh[];
+   uvm_tlm_analysis_fifo #(read_xtn) fifo_rdh[];
+
+   env_config m_cfg;
+   int data_verified;
+
+   write_xtn write_data;
+   read_xtn read_data;
+
+   write_xtn write_cov_data;
+   read_xtn read_cov_data;
+
+
+  covergroup router_cov1;
+        option.per_instance=1;
+        HEADER: coverpoint write_cov_data.header[1:0]{bins low = {2'b00};
+                                                     bins mid = {2'b01};
+                                                     bins high = {2'b10};
+                                                                }
+        PAYLOAD: coverpoint write_cov_data.header[7:2]{bins low = {[1:15]};
+                                                             bins mid = {[16:30]};
+                                                             bins high = {[31:63]};}
+        BAD_PKT:coverpoint write_cov_data.err{bins bad = {1};}
+
+        HEADERXPAY: cross HEADER,PAYLOAD;
+
+        HEADXBAD:cross HEADER,PAYLOAD,BAD_PKT;
+  endgroup
+
+
+
+  covergroup router_cov2;
+        option.per_instance=1;
+        HEADER: coverpoint read_cov_data.header[1:0]{bins low = {2'b00};
+                                                       bins mid = {2'b01};
+                                                        bins high = {2'b10};}
+        PAYLOAD: coverpoint read_cov_data.header[7:2]{bins low = {[1:15]};
+                                                             bins mid = {[16:30]};
+                                                             bins high = {[31:63]};}
+
+        HEADERXPAY: cross HEADER,PAYLOAD;
+
+  endgroup
+
+
+
+
+  function new(string name = "router_scoreboard",
+               uvm_component parent);
+    super.new(name, parent);
+        router_cov1 = new();
+        router_cov2 = new();
+  endfunction
+
+function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+if(!uvm_config_db#(env_config)::get(this,"","env_config",m_cfg))
+        `uvm_fatal(get_full_name,"NOT GETTING THE CONFIG")
+
+  fifo_wdh = new[m_cfg.no_of_source_agt];
+  fifo_rdh = new[m_cfg.no_of_dst_agt];
+
+  foreach(fifo_wdh[i])begin
+        fifo_wdh[i] = new($sformatf("fifo_wdh[%0d]",i),this);
+        end
+  foreach(fifo_rdh[i])begin
+        fifo_rdh[i] = new($sformatf("fifo_rdh[%0d]",i),this);
+        end
+endfunction
+
+task run_phase(uvm_phase phase);
+    super.run_phase(phase);
+
+   fork
+      begin
+        forever
+           begin
+                fifo_wdh[0].get(write_data);
+                `uvm_info("WRITE SB","write_data",UVM_LOW)
+                write_data.print();
+                write_cov_data = write_data;
+                router_cov1.sample();
+          end
+
+        end
+     begin
+        forever
+            begin
+                fork
+                  begin
+                        fifo_rdh[0].get(read_data);
+                        `uvm_info("READ SB[0]","read_data",UVM_LOW)
+                        read_data.print();
+                        check_data(read_data);
+                        read_cov_data = read_data;
+                        router_cov2.sample();
+                  end
+                  begin
+                        fifo_rdh[1].get(read_data);
+                        `uvm_info("READ SB[1]","read_data",UVM_LOW)
+                        read_data.print();
+                        check_data(read_data);
+                        read_cov_data = read_data;
+                        router_cov2.sample();
+                end
+                begin
+                        fifo_rdh[2].get(read_data);
+                        `uvm_info("READ SB[2]","read_data",UVM_LOW)
+                        read_data.print();
+                        check_data(read_data);
+                        read_cov_data = read_data;
+                        router_cov2.sample();
+                end
+              join_any
+            disable fork;
+        end
+   end
+ join
+
+endtask
+
+function void check_data(read_xtn rd);
+
+        if(write_data.header==rd.header)
+                `uvm_info("SB","HEADER MATCHED SUCCESSFULLY",UVM_LOW)
+        else
+                `uvm_error("SB","HEADER MISMATCHED")
+
+
+        if(write_data.payload_data==rd.payload_data)
+                `uvm_info("SB","PAYLOAD MATCHED SUCCESSFULLY",UVM_LOW)
+        else
+                `uvm_error("SB","PAYLOAD MISMATCHED")
+
+
+        if(write_data.parity == rd.parity)
+                `uvm_info("SB","PARITY MATCHED SUCCESSFULLY",UVM_LOW)
+        else
+                `uvm_error("SB","PARITY MISMATCHED")
+
+        data_verified++;
+endfunction
+
+function void report_phase(uvm_phase phase);
+        super.report_phase(phase);
+        `uvm_info("SCORBOARD",$sformatf("\n//////////////////////////// \nDATA VERIFIED BY SCOREBOARD = %0d\n//////////////////////////",data_verified),UVM_LOW);
+endfunction
+
+endclass
